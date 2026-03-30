@@ -1,5 +1,7 @@
 ﻿using Api.Data;
 using Api.Data.Entities;
+using Api.Models.User;
+using Api.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -15,19 +17,21 @@ namespace Api.Services
         private readonly int _accessExpiry = int.Parse(configuration["Jwt:DefaultAccessTokenExpirationMinutes"] ?? "15");
         private readonly int _refreshExpiry = int.Parse(configuration["Jwt:DefaultRefreshTokenExpirationDays"] ?? "7");
 
-        public string GenerateAccessToken(User user)
+        public async Task<string> GenerateAccessToken(UserDto user)
         {
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secret));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
             var jti = Guid.NewGuid().ToString();
+
+            //var role = await _roleRepository.FirstOrDefaultAsync(x => x);
 
             var claims = new List<Claim>
             {
                 new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
                 new(JwtRegisteredClaimNames.Email, user.Email),
                 new(JwtRegisteredClaimNames.Jti, jti),
-                new("firstName", user.FirstName ?? string.Empty),
-                new("lastName", user.LastName ?? string.Empty)
+                new("name", user.FullName ?? string.Empty),
+                new("role", user.Role)
             };
 
             var token = new JwtSecurityToken(

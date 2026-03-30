@@ -1,17 +1,30 @@
-﻿using Api.Data;
+﻿using Api.Common.Constants;
+using Api.Data;
 using Api.Data.Entities;
+using Api.Helpers;
 using Api.Models;
+using Api.Models.User;
+using Api.Repositories;
 using Microsoft.EntityFrameworkCore;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
 namespace Api.Services
 {
-    public class AccountService(AppDbContext dbContext, TokenService tokenService)
+    public class AccountService(AppDbContext db, TokenService tokenService, IUserRepository userRepository, IRoleRepository roleRepository)
     {
+
+        private readonly IUserRepository _userRepository = userRepository;
+        private readonly IRoleRepository roleRepository = roleRepository;
+
         public async Task<AuthResponse> RegisterUser(RegisterRequest request)
         {
-            if (await dbContext.Users.AnyAsync(u => u.Email == request.Email))
+            if (await _userRepository.AnyAsync(u => u.Email == request.Email))
+                return new();
+
+            var userRole = await roleRepository.FirstOrDefaultAsync(x => x.Name == RoleConstants.User);
+            
+            if (userRole == null)
                 return new();
 
             var user = new User
@@ -19,18 +32,29 @@ namespace Api.Services
                 Email = request.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 FirstName = request.FirstName,
-                LastName = request.LastName
+                LastName = request.LastName,
+                Roles =
+                [
+                    userRole
+                ]
             };
 
-            dbContext.Users.Add(user);
-            await dbContext.SaveChangesAsync();
+            _userRepository.Add(user);
 
-            return await IssueTokenPair(user);
+            await db.SaveChangesAsync();
+
+            return await IssueTokenPair(new UserDto
+            {
+                Email = user.Email,
+                FullName = UserHelper.GetFullName(user.FirstName, user.LastName),
+                Role = userRole.Name,
+                Id = user.Id
+            });
         }
 
         public async Task<AuthResponse> Login(LoginRequest request)
         {
-            var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+            var user = await _userRepository.GetUserLogin(request.Email);
 
             if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
                 return new();
@@ -46,7 +70,7 @@ namespace Api.Services
 
             var jti = principal.FindFirstValue(JwtRegisteredClaimNames.Jti);
 
-            var stored = await dbContext.RefreshTokens
+            var stored = await db.RefreshTokens
                 .Include(x => x.User)
                 .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken);
 
@@ -54,14 +78,20 @@ namespace Api.Services
                 return new();
 
             stored.IsUsed = true;
-            await dbContext.SaveChangesAsync();
+            await db.SaveChangesAsync();
 
-            return await IssueTokenPair(stored.User);
+            return await IssueTokenPair(new UserDto
+            {
+                Id = stored.User.Id,
+                Email = stored.User.Email,
+                Role = stored.User.Roles.FirstOrDefault()?.Name ?? RoleConstants.DefautlRole,
+                FullName = UserHelper.GetFullName(stored.User.FirstName, stored.User.LastName)
+            });
         }
 
-        private async Task<AuthResponse> IssueTokenPair(User user)
+        private async Task<AuthResponse> IssueTokenPair(UserDto user)
         {
-            var accessToken = tokenService.GenerateAccessToken(user);
+            var accessToken = await tokenService.GenerateAccessToken(user);
 
             var jti = new JwtSecurityTokenHandler().ReadJwtToken(accessToken).Id;
 
@@ -77,13 +107,13 @@ namespace Api.Services
 
         public async Task<bool> RevokeRefreshToken(string refreshToken)
         {
-            var data = await dbContext.RefreshTokens.FirstOrDefaultAsync(x => x.Token == refreshToken);
+            var data = await db.RefreshTokens.FirstOrDefaultAsync(x => x.Token == refreshToken);
 
             if (data is null || data.IsRevoked)
                 return false;
 
             data.IsRevoked = true;
-            await dbContext.SaveChangesAsync();
+            await db.SaveChangesAsync();
 
             return true;
         }
@@ -98,7 +128,7 @@ namespace Api.Services
             if (!Guid.TryParse(userId, out var userGuid))
                 return false;
 
-            await dbContext.RefreshTokens
+            await db.RefreshTokens
                 .Where(x => x.UserId == userGuid && x.IsRevoked == false)
                 .ExecuteUpdateAsync(x => x.SetProperty(y => y.IsRevoked, true));
 

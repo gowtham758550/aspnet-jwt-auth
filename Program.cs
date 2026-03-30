@@ -1,19 +1,15 @@
-using Api.Data;
-using Api.Services;
+using Api.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ── Database ──────────────────────────────────────────────────────────────
-builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+// ── Persistance ──────────────────────────────────────────────────────────────
+builder.Services.AddPersistance(builder.Configuration);
 
 // ── Services ──────────────────────────────────────────────────────────────
-builder.Services.AddScoped<TokenService>();
-builder.Services.AddScoped<AccountService>();
+builder.Services.AddBusinessService();
 
 // ── JWT Authentication ────────────────────────────────────────────────────
 var jwtKey = Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]!);

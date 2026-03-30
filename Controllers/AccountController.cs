@@ -48,14 +48,14 @@ namespace Api.Controllers
             var email = User.FindFirstValue(JwtRegisteredClaimNames.Email);
             var firstName = User.FindFirstValue("firstName");
             var lastName = User.FindFirstValue("lastName");
+            var role = User.FindFirstValue("role");
             return Ok(new
             {
-                Id = userId,
-                Email = email,
-                FirstName = firstName,
-                LastName = lastName
-
-
+                userId,
+                email,
+                firstName,
+                lastName,
+                role
             });
         }
 
