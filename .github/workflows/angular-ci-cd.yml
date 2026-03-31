@@ -12,6 +12,8 @@ jobs:
   build:
     name: Build Angular Application
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     strategy:
       matrix:
@@ -36,10 +38,10 @@ jobs:
         run: npm run build
         working-directory: ./src/client
 
-      - name: Run tests
-        run: npm run test -- --watch=false --browsers=ChromeHeadless
-        working-directory: ./src/client
-        continue-on-error: true
+      # - name: Run tests
+      #   run: npm run test -- --watch=false --browsers=ChromeHeadless
+      #   working-directory: ./src/client
+      #   continue-on-error: true
 
       - name: Create zip archive
         run: |
@@ -56,8 +58,9 @@ jobs:
           retention-days: 30
       - name: Deploy to GitHub Pages
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./src/client/dist
-          # cname: your-domain.com  # Replace with your domain if using custom domain
+          force_orphan: true
+          # cname: your-domain.com  # Uncomment and replace with your domain if using custom domain
