@@ -1,0 +1,14 @@
+<!-- Top bar -->
+<div class="top-bar">
+  <h1>Auth session tester</h1>
+  <button class="add-session-btn" (click)="addSession()">+ add session</button>
+</div>
+
+<!-- Sessions grid -->
+<div class="sessions-grid">
+  <app-session-card 
+    *ngFor="let session of sessions" 
+    [session]="session"
+    (removeSession)="removeSession(session.id)"
+  ></app-session-card>
+</div>
