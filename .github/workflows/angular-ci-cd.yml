@@ -61,6 +61,6 @@ jobs:
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./src/client/dist
+          publish_dir: ./client
           force_orphan: true
           # cname: your-domain.com  # Uncomment and replace with your domain if using custom domain
