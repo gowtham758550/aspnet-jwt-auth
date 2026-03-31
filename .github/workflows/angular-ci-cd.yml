@@ -35,7 +35,7 @@ jobs:
         working-directory: ./src/client
 
       - name: Build Angular application
-        run: npm run build
+        run: npm run build -- --base-href=/aspnet-jwt-auth/
         working-directory: ./src/client
 
       # - name: Run tests
