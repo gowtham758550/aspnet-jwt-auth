@@ -31,7 +31,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
+var MyAllowSpecificOrigins = "_myAllowSpecificOrigins"; // Policy name is arbitrary
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: MyAllowSpecificOrigins,
+        policy =>
+        {
+            // Specify the exact origins of your front-end applications
+            policy.WithOrigins("http://localhost:4200")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
+});
 // ── Swagger with JWT support ──────────────────────────────────────────────
 //builder.Services.AddEndpointsApiExplorer();
 //builder.Services.AddSwaggerGen(c =>
@@ -65,6 +77,8 @@ builder.Services.AddControllers();
 var app = builder.Build();
 
 app.UseAuthentication();
+app.UseCors(MyAllowSpecificOrigins);
+
 app.UseAuthorization();
 app.MapControllers();
 
