@@ -42,6 +42,10 @@ builder.Services.AddCors(options =>
             policy.WithOrigins("http://localhost:4200")
                   .AllowAnyHeader()
                   .AllowAnyMethod();
+            // Specify the exact origins of your front-end applications
+            policy.WithOrigins("https://blue-coast-0ef1f2600.6.azurestaticapps.net")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
         });
 });
 // ── Swagger with JWT support ──────────────────────────────────────────────
