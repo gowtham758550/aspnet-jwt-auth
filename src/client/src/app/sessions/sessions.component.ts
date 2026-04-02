@@ -1,5 +1,4 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SessionCardComponent } from './session-card/session-card.component';
 
@@ -20,13 +19,13 @@ export interface AuthSession {
 @Component({
   selector: 'app-sessions',
   standalone: true,
-  imports: [CommonModule, FormsModule, SessionCardComponent],
+  imports: [FormsModule, SessionCardComponent],
   templateUrl: './sessions.component.html',
   styleUrl: './sessions.component.scss'
 })
 export class SessionsComponent implements OnInit {
-  sessions: AuthSession[] = [];
-  
+  readonly sessions = signal<AuthSession[]>([]);
+
   private sessionCounter = 0;
   private readonly PALETTE = [
     '#85B7EB',  // blue
@@ -42,9 +41,10 @@ export class SessionsComponent implements OnInit {
   }
 
   addSession() {
+    const currentSessions = this.sessions();
     const session: AuthSession = {
       id: `session-${++this.sessionCounter}`,
-      color: this.PALETTE[this.sessions.length % this.PALETTE.length],
+      color: this.PALETTE[currentSessions.length % this.PALETTE.length],
       email: '',
       password: '',
       status: 'idle',
@@ -55,10 +55,10 @@ export class SessionsComponent implements OnInit {
       user: null,
       log: []
     };
-    this.sessions.push(session);
+    this.sessions.update((sessions) => [...sessions, session]);
   }
 
   removeSession(sessionId: string) {
-    this.sessions = this.sessions.filter(s => s.id !== sessionId);
+    this.sessions.update((sessions) => sessions.filter((session) => session.id !== sessionId));
   }
 }

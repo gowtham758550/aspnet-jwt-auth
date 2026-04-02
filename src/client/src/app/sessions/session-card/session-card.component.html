@@ -1,4 +1,4 @@
-<div class="session-card" [style.border-top-color]="session.color">
+<div class="session-card" [style.border-top-color]="session().color">
   <!-- Card Header -->
   <div class="session-card-header">
     <div class="session-label">{{ getSessionLabel() }}</div>
@@ -14,66 +14,64 @@
     </div>
 
     <!-- Login Form (when idle) -->
-    <ng-container *ngIf="session.status === 'idle'">
+    @if (session().status === 'idle') {
       <div class="login-form">
         <input 
           type="email" 
           placeholder="user@example.com"
-          [(ngModel)]="session.email"
+          [formControl]="emailControl"
           class="form-input"
         >
         <input 
           type="password" 
           placeholder="••••••••"
-          [(ngModel)]="session.password"
+          [formControl]="passwordControl"
           class="form-input"
         >
         <button class="login-btn" (click)="login()">Login</button>
       </div>
-    </ng-container>
-
-    <!-- User Info (when logged in) -->
-    <ng-container *ngIf="session.status !== 'idle'">
-      <ng-container *ngIf="session.user">
+    } @else {
+      <!-- User Info (when logged in) -->
+      @if (session().user) {
         <div class="user-info">
-          <div class="user-avatar" [style.background]="session.color">
+          <div class="user-avatar" [style.background]="session().color">
             {{ getInitials() }}
           </div>
           <div class="user-details">
             <div class="user-name">{{ getFullName() }}</div>
-            <div class="user-email">{{ session.user.email }}</div>
+            <div class="user-email">{{ session().user?.email }}</div>
           </div>
         </div>
-      </ng-container>
+      }
 
       <!-- Access Token -->
-      <ng-container *ngIf="session.accessToken && session.decodedAccess">
+      @if (session().accessToken && session().decodedAccess) {
         <div class="token-section">
           <div class="token-label">Access Token</div>
           <div class="token-display">
-            <div class="token-value" [title]="session.accessToken">{{ getTokenPreview(session.accessToken) }}</div>
-            <span class="token-badge" [ngClass]="getExpiryInfo(session.decodedAccess).status">
-              {{ getExpiryInfo(session.decodedAccess).status === 'valid' ? 'Valid' : 'Expired' }}
+            <div class="token-value" [title]="session().accessToken">{{ getTokenPreview(session().accessToken) }}</div>
+            <span class="token-badge" [ngClass]="getExpiryInfo(session().decodedAccess).status">
+              {{ getExpiryInfo(session().decodedAccess).status === 'valid' ? 'Valid' : 'Expired' }}
             </span>
           </div>
-          <div class="token-expiry">exp: {{ getExpiryInfo(session.decodedAccess).text }}</div>
+          <div class="token-expiry">exp: {{ getExpiryInfo(session().decodedAccess).text }}</div>
         </div>
-      </ng-container>
+      }
 
       <!-- Refresh Token -->
-      <ng-container *ngIf="session.refreshToken && session.decodedRefresh">
+      @if (session().refreshToken && session().decodedRefresh) {
         <div class="token-section">
           <div class="token-label">Refresh Token</div>
           <div class="token-display">
-            <div class="token-value" [title]="session.refreshToken">{{ getTokenPreview(session.refreshToken) }}</div>
-            <span class="token-badge" [ngClass]="getExpiryInfo(session.decodedRefresh).status">
-              {{ getExpiryInfo(session.decodedRefresh).status === 'valid' ? 'Valid' : 'Expired' }}
+            <div class="token-value" [title]="session().refreshToken">{{ getTokenPreview(session().refreshToken) }}</div>
+            <span class="token-badge" [ngClass]="getExpiryInfo(session().decodedRefresh).status">
+              {{ getExpiryInfo(session().decodedRefresh).status === 'valid' ? 'Valid' : 'Expired' }}
             </span>
           </div>
-          <div class="token-expiry">exp: {{ getExpiryInfo(session.decodedRefresh).text }}</div>
+          <div class="token-expiry">exp: {{ getExpiryInfo(session().decodedRefresh).text }}</div>
         </div>
-      </ng-container>
-    </ng-container>
+      }
+    }
 
     <!-- Action Buttons -->
     <div class="action-buttons">
@@ -101,15 +99,15 @@
 
     <!-- Activity Log -->
     <div class="activity-log">
-      <ng-container *ngIf="session.log.length === 0">
+      @if (session().log.length === 0) {
         <div class="log-entry">No activity yet</div>
-      </ng-container>
-      <ng-container *ngFor="let entry of session.log">
+      }
+      @for (entry of session().log; track $index) {
         <div class="log-entry" [ngClass]="entry.type">
           <span class="log-time">{{ entry.time }}</span>
           <span class="log-message">  {{ entry.message }}</span>
         </div>
-      </ng-container>
+      }
     </div>
   </div>
 </div>

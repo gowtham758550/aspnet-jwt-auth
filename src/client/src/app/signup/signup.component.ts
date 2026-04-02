@@ -1,20 +1,19 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { CommonModule } from '@angular/common';
 import { AccountService } from '../services/account.service';
 
 @Component({
   selector: 'app-signup',
   standalone: true,
-  imports: [ReactiveFormsModule, CommonModule],
+  imports: [ReactiveFormsModule],
   templateUrl: './signup.component.html',
   styleUrl: './signup.component.scss'
 })
 export class SignupComponent {
   signupForm: FormGroup;
-  loading = false;
-  errorMessage: string | null = null;
-  successMessage: string | null = null;
+  readonly loading = signal(false);
+  readonly errorMessage = signal<string | null>(null);
+  readonly successMessage = signal<string | null>(null);
 
   constructor(
     private fb: FormBuilder,
@@ -30,17 +29,17 @@ export class SignupComponent {
 
   onSubmit() {
     if (this.signupForm.valid) {
-      this.loading = true;
-      this.errorMessage = null;
-      this.successMessage = null;
+      this.loading.set(true);
+      this.errorMessage.set(null);
+      this.successMessage.set(null);
 
       const formData = this.signupForm.value;
 
       this.accountService.register(formData).subscribe({
         next: (response) => {
-          this.loading = false;
+          this.loading.set(false);
           if (response.success) {
-            this.successMessage = 'Account created successfully!';
+            this.successMessage.set('Account created successfully!');
             // Store tokens
             localStorage.setItem('token', response.token);
             localStorage.setItem('refreshToken', response.refreshToken);
@@ -49,12 +48,14 @@ export class SignupComponent {
             // TODO: Redirect to sessions or dashboard
             console.log('Registration successful', response);
           } else {
-            this.errorMessage = 'Registration failed. Please try again.';
+            this.errorMessage.set('Registration failed. Please try again.');
           }
         },
         error: (error) => {
-          this.loading = false;
-          this.errorMessage = error.error?.message || 'An error occurred during registration. Please try again.';
+          this.loading.set(false);
+          this.errorMessage.set(
+            error.error?.message || 'An error occurred during registration. Please try again.'
+          );
           console.error('Registration error:', error);
         }
       });

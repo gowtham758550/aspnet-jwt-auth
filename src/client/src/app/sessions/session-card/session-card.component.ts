@@ -1,25 +1,45 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angular/core';
+import { Component, DestroyRef, inject, input, OnDestroy, OnInit, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthSession } from '../sessions.component';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-session-card',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './session-card.component.html',
   styleUrl: './session-card.component.scss'
 })
 export class SessionCardComponent implements OnInit, OnDestroy {
-  @Input() session!: AuthSession;
-  @Output() removeSession = new EventEmitter<void>();
+  readonly session = input.required<AuthSession>();
+  readonly removeSession = output<void>();
+  readonly emailControl = new FormControl('', { nonNullable: true });
+  readonly passwordControl = new FormControl('', { nonNullable: true });
 
+  private readonly destroyRef = inject(DestroyRef);
   private expiryInterval: any;
 
   constructor(private authService: AuthService) {}
 
   ngOnInit() {
+    const session = this.session();
+    this.emailControl.setValue(session.email);
+    this.passwordControl.setValue(session.password);
+
+    this.emailControl.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((value) => {
+        this.session().email = value;
+      });
+
+    this.passwordControl.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((value) => {
+        this.session().password = value;
+      });
+
     this.startExpiryCountdown();
   }
 
@@ -35,21 +55,24 @@ export class SessionCardComponent implements OnInit, OnDestroy {
   }
 
   async login() {
-    const result = await this.authService.login(this.session.email, this.session.password);
+    const session = this.session();
+    session.email = this.emailControl.value;
+    session.password = this.passwordControl.value;
+    const result = await this.authService.login(this.emailControl.value, this.passwordControl.value);
 
     if (result.ok && result.data) {
-      this.session.accessToken = result.data.token;
-      this.session.refreshToken = result.data.refreshToken;
-      this.session.decodedAccess = this.decodeJwt(result.data.token);
-      this.session.decodedRefresh = this.decodeJwt(result.data.refreshToken);
+      session.accessToken = result.data.token;
+      session.refreshToken = result.data.refreshToken;
+      session.decodedAccess = this.decodeJwt(result.data.token);
+      session.decodedRefresh = this.decodeJwt(result.data.refreshToken);
 
       this.logEntry(`POST /login → ${result.status}`, 'success');
 
       // Fetch user info
-      const meResult = await this.authService.getMe(this.session.accessToken ?? '');
+      const meResult = await this.authService.getMe(session.accessToken ?? '');
       if (meResult.ok && meResult.data) {
-        this.session.user = meResult.data;
-        this.session.status = 'logged-in';
+        session.user = meResult.data;
+        session.status = 'logged-in';
         this.logEntry(`POST /me → ${meResult.status}`, 'success');
       }
     } else {
@@ -58,15 +81,16 @@ export class SessionCardComponent implements OnInit, OnDestroy {
   }
 
   async logout() {
-    const result = await this.authService.logout(this.session.refreshToken || '');
+    const session = this.session();
+    const result = await this.authService.logout(session.refreshToken || '');
 
     if (result.ok) {
-      this.session.accessToken = null;
-      this.session.refreshToken = null;
-      this.session.decodedAccess = null;
-      this.session.decodedRefresh = null;
-      this.session.user = null;
-      this.session.status = 'idle';
+      session.accessToken = null;
+      session.refreshToken = null;
+      session.decodedAccess = null;
+      session.decodedRefresh = null;
+      session.user = null;
+      session.status = 'idle';
       this.logEntry(`POST /logout → ${result.status}`, 'success');
     } else {
       this.logEntry(`POST /logout → ${result.status || 'Error'}`, 'error');
@@ -74,15 +98,16 @@ export class SessionCardComponent implements OnInit, OnDestroy {
   }
 
   async logoutAll() {
-    const result = await this.authService.logoutAll(this.session.accessToken || '');
+    const session = this.session();
+    const result = await this.authService.logoutAll(session.accessToken || '');
 
     if (result.ok) {
-      this.session.accessToken = null;
-      this.session.refreshToken = null;
-      this.session.decodedAccess = null;
-      this.session.decodedRefresh = null;
-      this.session.user = null;
-      this.session.status = 'idle';
+      session.accessToken = null;
+      session.refreshToken = null;
+      session.decodedAccess = null;
+      session.decodedRefresh = null;
+      session.user = null;
+      session.status = 'idle';
       this.logEntry(`POST /logout-all → ${result.status}`, 'success');
     } else {
       this.logEntry(`POST /logout-all → ${result.status || 'Error'}`, 'error');
@@ -90,15 +115,16 @@ export class SessionCardComponent implements OnInit, OnDestroy {
   }
 
   async refresh() {
+    const session = this.session();
     const result = await this.authService.refresh(
-      this.session.accessToken || '',
-      this.session.refreshToken || ''
+      session.accessToken || '',
+      session.refreshToken || ''
     );
 
     if (result.ok && result.data) {
-      this.session.accessToken = result.data.token;
-      this.session.decodedAccess = this.decodeJwt(result.data.token);
-      this.session.status = 'logged-in';
+      session.accessToken = result.data.token;
+      session.decodedAccess = this.decodeJwt(result.data.token);
+      session.status = 'logged-in';
       this.logEntry(`POST /refresh → ${result.status}`, 'success');
     } else {
       this.logEntry(`POST /refresh → ${result.status || 'Error'}`, 'error');
@@ -106,9 +132,10 @@ export class SessionCardComponent implements OnInit, OnDestroy {
   }
 
   async getMe() {
-    const result = await this.authService.getMe(this.session.accessToken || '');
+    const session = this.session();
+    const result = await this.authService.getMe(session.accessToken || '');
     if (result.ok && result.data) {
-      this.session.user = result.data;
+      session.user = result.data;
       this.logEntry(`POST /me → ${result.status}`, 'success');
     } else {
       this.logEntry(`POST /me → ${result.status || 'Error'}`, 'error');
@@ -117,6 +144,7 @@ export class SessionCardComponent implements OnInit, OnDestroy {
 
   // ========== LOGGING ==========
   logEntry(message: string, type: string = 'info') {
+    const session = this.session();
     const now = new Date();
     const time = now.toLocaleTimeString('en-US', {
       hour12: false,
@@ -125,9 +153,9 @@ export class SessionCardComponent implements OnInit, OnDestroy {
       second: '2-digit'
     });
 
-    this.session.log.unshift({ time, message, type });
-    if (this.session.log.length > 15) {
-      this.session.log.pop();
+    session.log.unshift({ time, message, type });
+    if (session.log.length > 15) {
+      session.log.pop();
     }
   }
 
@@ -158,10 +186,11 @@ export class SessionCardComponent implements OnInit, OnDestroy {
 
   private startExpiryCountdown() {
     this.expiryInterval = setInterval(() => {
-      if (this.session.decodedAccess) {
-        const info = this.getExpiryInfo(this.session.decodedAccess);
-        if (info.status === 'expired' && this.session.status !== 'expired') {
-          this.session.status = 'expired';
+      const session = this.session();
+      if (session.decodedAccess) {
+        const info = this.getExpiryInfo(session.decodedAccess);
+        if (info.status === 'expired' && session.status !== 'expired') {
+          session.status = 'expired';
         }
       }
     }, 1000);
@@ -169,7 +198,7 @@ export class SessionCardComponent implements OnInit, OnDestroy {
 
   // ========== UTILITIES ==========
   getSessionLabel(): string {
-    const letter = this.session.id.split('-')[1].toUpperCase();
+    const letter = this.session().id.split('-')[1].toUpperCase();
     return `SESSION ${letter}`;
   }
 
@@ -179,7 +208,7 @@ export class SessionCardComponent implements OnInit, OnDestroy {
       'logged-in': 'Logged in',
       'expired': 'Token expired'
     };
-    return statusMap[this.session.status];
+    return statusMap[this.session().status];
   }
 
   getStatusDotClass(): string {
@@ -188,23 +217,25 @@ export class SessionCardComponent implements OnInit, OnDestroy {
       'logged-in': 'logged-in',
       'expired': 'expired'
     };
-    return statusMap[this.session.status];
+    return statusMap[this.session().status];
   }
 
   getInitials(): string {
-    if (!this.session.user || !this.session.user.name) return '?';
-    const parts = this.session.user.name.split(' ').filter((p: string | any[]) => p.length > 0);
+    const session = this.session();
+    if (!session.user || !session.user.name) return '?';
+    const parts = session.user.name.split(' ').filter((p: string | any[]) => p.length > 0);
     const initials = parts.slice(0, 2).map((p: any[]) => p[0]).join('');
     return initials.toUpperCase() || '?';
   }
 
   getFullName(): string {
-    if (!this.session.user) return '';
-    return this.session.user.name || '';
+    const user = this.session().user;
+    if (!user) return '';
+    return user.name || '';
   }
 
   isLoggedIn(): boolean {
-    return this.session.status === 'logged-in';
+    return this.session().status === 'logged-in';
   }
 
   getTokenPreview(token: string | null): string {

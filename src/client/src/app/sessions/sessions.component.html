@@ -6,9 +6,10 @@
 
 <!-- Sessions grid -->
 <div class="sessions-grid">
-  <app-session-card 
-    *ngFor="let session of sessions" 
-    [session]="session"
-    (removeSession)="removeSession(session.id)"
-  ></app-session-card>
+  @for (session of sessions(); track session.id) {
+    <app-session-card
+      [session]="session"
+      (removeSession)="removeSession(session.id)"
+    ></app-session-card>
+  }
 </div>
