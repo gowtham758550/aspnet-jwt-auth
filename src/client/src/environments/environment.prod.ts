@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://api.example.com/api'
+  apiUrl: 'allow your azure app service to access the sql server/api'
 };
